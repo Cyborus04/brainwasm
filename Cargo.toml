@@ -8,7 +8,7 @@ version = "0.1.0"
 [dependencies]
 anyhow = {version = "1.0.45", optional = true}
 clap = {version = "4.0.22", optional = true, features = ["derive"]}
-wabam = {path = "../wabam"}
+wabam = {git = "https://github.com/Cyborus04/wabam.git"}
 
 [features]
 bin = ["clap", "anyhow"]
