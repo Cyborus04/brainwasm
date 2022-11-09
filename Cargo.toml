@@ -1,0 +1,18 @@
+[package]
+edition = "2021"
+name = "brainwasm"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = {version = "1.0.45", optional = true}
+clap = {version = "4.0.22", optional = true, features = ["derive"]}
+wabam = {path = "../wabam"}
+
+[features]
+bin = ["clap", "anyhow"]
+
+[[bin]]
+name = "b2w"
+required-features = ["bin"]
