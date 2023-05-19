@@ -8,7 +8,7 @@ pub fn bf_to_wasm(
 
     let mut module = wabam::Module::EMPTY;
 
-    module.custom_sections.push(wabam::NameSection {
+    module.custom_sections.push(wabam::customs::NameSection {
         module_name: name.map(str::to_owned),
         function_names: vec![
             (0, "fd_write".into()),
@@ -25,7 +25,7 @@ pub fn bf_to_wasm(
     if let Some((name, data)) = custom_section {
         module
             .custom_sections
-            .push(wabam::CustomSection { name, data })
+            .push(wabam::customs::CustomSection { name, data })
     }
 
     module.types = vec![
@@ -34,15 +34,15 @@ pub fn bf_to_wasm(
     ];
 
     module.imports = vec![
-        wabam::Import {
+        wabam::interface::Import {
             module: "wasi_snapshot_preview1".into(),
             name: "fd_write".into(),
-            desc: wabam::ImportDescription::Func { type_idx: 1 },
+            desc: wabam::interface::ImportDesc::Func { type_idx: 1 },
         },
-        wabam::Import {
+        wabam::interface::Import {
             module: "wasi_snapshot_preview1".into(),
             name: "fd_read".into(),
-            desc: wabam::ImportDescription::Func { type_idx: 1 },
+            desc: wabam::interface::ImportDesc::Func { type_idx: 1 },
         },
     ];
 
@@ -51,124 +51,104 @@ pub fn bf_to_wasm(
         end: None,
     }];
 
-    module.exports = vec![
-        wabam::Export {
-            name: "_start".into(),
-            desc: wabam::ExportDesc::Func(2),
-        },
-        wabam::Export {
-            name: "memory".into(),
-            desc: wabam::ExportDesc::Memory(0),
-        },
-    ];
-
-    use wabam::Instruction::*;
-    let mut body = vec![
-        I32Const(0),
-        I32Const(1),
-        I32Store {
-            align: 2,
-            offset: 4,
-        },
-    ];
+    let mut body = Vec::new();
+    
+    body.extend(wabam::instrs!(
+        (i32.const 0)
+        (i32.const 1)
+        (i32.store offset=4)
+    ));
 
     for c in bf.0 {
         match c {
             BfInstr::Right(x) => {
-                body.extend([
-                    LocalGet(0),
-                    I32Const(x),
-                    I32Add,
-                    LocalSet(0),
-                ]);
+                body.extend(wabam::instrs!(
+                    (local.get 0)
+                    (i32.const { x })
+                    (i32.add)
+                    (local.set 0)
+                ));
             }
             BfInstr::Add(x) => {
-                body.extend([
-                    LocalGet(0),
-                    LocalGet(0),
-                    I32LoadS8 {
-                        align: 0,
-                        offset: 12,
-                    },
-                    I32Const(x as i32),
-                    I32Add,
-                    I32StoreI8 {
-                        align: 0,
-                        offset: 12,
-                    },
-                ]);
+                body.extend(wabam::instrs!(
+                    (local.get 0)
+                    (local.get 0)
+                    (i32.load8_s offset=12)
+                    (i32.const { x as i32 })
+                    (i32.add)
+                    (i32.store8 offset=12)
+                ));
             }
             BfInstr::Output => {
-                body.extend([
-                    I32Const(0),
-                    LocalGet(0),
-                    I32Const(12),
-                    I32Add,
-                    I32Store {
-                        align: 2,
-                        offset: 0,
-                    },
-                    I32Const(1),
-                    I32Const(0),
-                    I32Const(1),
-                    I32Const(8),
-                    Call(0),
-                    If(None),
-                    Unreachable,
-                    End,
-                ]);
+                body.extend(wabam::instrs!(
+                    (i32.const 0)
+                    (local.get 0)
+                    (i32.const 12)
+                    (i32.add)
+                    (i32.store)
+                    (i32.const 1)
+                    (i32.const 0)
+                    (i32.const 1)
+                    (i32.const 8)
+                    (call 0)
+                    (if)
+                    (unreachable)
+                    (end)
+                ));
             }
             BfInstr::Input => {
-                body.extend([
-                    I32Const(0),
-                    LocalGet(0),
-                    I32Const(12),
-                    I32Add,
-                    I32Store {
-                        align: 2,
-                        offset: 0,
-                    },
-                    I32Const(0),
-                    I32Const(0),
-                    I32Const(1),
-                    I32Const(8),
-                    Call(1),
-                    If(None),
-                    Unreachable,
-                    End,
-                ]);
+                body.extend(wabam::instrs!(
+                    (i32.const 0)
+                    (local.get 0)
+                    (i32.const 12)
+                    (i32.add)
+                    (i32.store)
+                    (i32.const 0)
+                    (i32.const 0)
+                    (i32.const 1)
+                    (i32.const 8)
+                    (call 1)
+                    (if)
+                    (unreachable)
+                    (end)
+                ));
             }
             BfInstr::StartLoop => {
-                body.extend([
-                    LocalGet(0),
-                    I32LoadS8 {
-                        align: 0,
-                        offset: 12,
-                    },
-                    If(None),
-                    Loop(None),
-                ]);
+                body.extend(wabam::instrs!(
+                    (local.get 0)
+                    (i32.load8_s offset=12)
+                    (if)
+                    (loop)
+                ));
             }
             BfInstr::EndLoop => {
-                body.extend([
-                    LocalGet(0),
-                    I32LoadS8 {
-                        align: 0,
-                        offset: 12,
-                    },
-                    BranchIf(0),
-                    End,
-                    End,
-                ]);
+                body.extend(wabam::instrs!(
+                    (local.get 0)
+                    (i32.load8_s offset=12)
+                    (br_if 0)
+                    (end)
+                    (end)
+                ));
             }
         }
     }
 
-    module.functions = vec![wabam::Function {
+    module.functions = vec![wabam::functions::Function {
         type_idx: 0,
         locals: vec![wabam::ValType::I32],
-        body: wabam::Expr { instructions: body },
+        body: body.into(),
     }];
+
+    module.exports = vec![
+        wabam::interface::Export {
+            name: "_start".into(),
+            desc: wabam::interface::ExportDesc::Func { func_idx: 2 },
+        },
+        wabam::interface::Export {
+            name: "memory".into(),
+            desc: wabam::interface::ExportDesc::Memory { mem_idx: 0 },
+        },
+    ];
 
     Ok(module.build())
 }
